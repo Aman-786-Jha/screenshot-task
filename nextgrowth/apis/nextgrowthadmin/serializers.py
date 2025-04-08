@@ -76,6 +76,16 @@ class NextGrowthBaseUserLoginSerializer(serializers.Serializer):
 
 
 
+# class AppTaskSerializer(serializers.ModelSerializer):
+#     class Meta:
+#         model = AppTask
+#         fields = '__all__'
+#         ref_name = "AdminAppTaskSerializer"
+        # extra_kwargs = {
+        #     'image': {'required': False, 'allow_null': True}
+        # }
+
+
 class AppTaskSerializer(serializers.ModelSerializer):
     class Meta:
         model = AppTask
@@ -84,6 +94,16 @@ class AppTaskSerializer(serializers.ModelSerializer):
         extra_kwargs = {
             'image': {'required': False, 'allow_null': True}
         }
+
+    def to_representation(self, instance):
+        rep = super().to_representation(instance)
+        request = self.context.get('request')
+        if instance.image and request:
+            rep['image'] = request.build_absolute_uri(instance.image.url)
+        elif instance.image:
+            rep['image'] = instance.image.url
+        return rep
+
 
 
 

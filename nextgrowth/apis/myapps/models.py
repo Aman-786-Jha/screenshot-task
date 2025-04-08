@@ -12,6 +12,9 @@ from .choices import *
 
 from datetime import date
 
+import cloudinary
+from cloudinary.models import CloudinaryField
+
 
 # Create your models here.
 class CommonTimePicker(models.Model):
@@ -32,7 +35,12 @@ class NextGrowthBaseUser(AbstractBaseUser,CommonTimePicker):
     user_type = models.CharField("User Type", max_length=10, choices=USER_TYPE_CHOICES,default='User',db_index=True)
     # user details
     full_name = models.CharField("Name",max_length=255, blank=True, null=True,db_index=True)
-    profile_picture = models.ImageField(upload_to='profiles/', null=True, blank=True)
+    profile_picture = CloudinaryField(
+        folder='media/nextgrowthprofile/pic/',  
+        blank=True, 
+        null=True, 
+        resource_type='image'
+    )
     points = models.PositiveIntegerField(default=0)
     email = models.EmailField("Email Address", null=True, blank=True, unique=True,db_index=True)
     uuid = models.UUIDField(default=uuid.uuid4, editable=False,unique=True,db_index=True)
@@ -101,7 +109,12 @@ class NextGrowthBaseUser(AbstractBaseUser,CommonTimePicker):
 class AppTask(CommonTimePicker):
     title = models.CharField(max_length=100)
     description = models.TextField()
-    image = models.ImageField(upload_to='apps/')
+    image = CloudinaryField(
+        folder='media/nextgrowth/taskimage/',  
+        blank=True, 
+        null=True, 
+        resource_type='image'
+    )
     download_link = models.URLField()
     points = models.PositiveIntegerField()
 
@@ -118,7 +131,12 @@ class TaskSubmission(models.Model):
 
     user = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE)
     task = models.ForeignKey(AppTask, on_delete=models.CASCADE)
-    screenshot = models.ImageField(upload_to='screenshots/')
+    screenshot = CloudinaryField(
+        folder='media/nextgrowthsubmitss/screenshots/',  
+        blank=True, 
+        null=True, 
+        resource_type='image'
+    )
     user_submitted_at = models.DateTimeField(null=True, blank=True)
     submitted_at = models.DateTimeField(auto_now_add=True)
     status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='pending')

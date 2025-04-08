@@ -320,7 +320,7 @@ class AppTaskListView(APIView):
                 }, status=status.HTTP_401_UNAUTHORIZED)
 
             tasks = AppTask.objects.all()
-            serializer = AppTaskSerializer(tasks, many=True)
+            serializer = AppTaskSerializer(tasks, many=True,context={'request': request})
             return Response({
                 'responseCode': status.HTTP_200_OK,
                 'responseMessage': "Tasks fetched successfully!",
@@ -541,7 +541,7 @@ class AppTaskDetailView(APIView):
                 }, status=status.HTTP_401_UNAUTHORIZED)
 
             task = get_object_or_404(AppTask, id=task_id)
-            serializer = AppTaskSerializer(task)
+            serializer = AppTaskSerializer(task,context={'request': request})
             return Response({
                 'responseCode': status.HTTP_200_OK,
                 'responseMessage': "Task fetched successfully!",

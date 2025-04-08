@@ -150,7 +150,8 @@
         
 
                     const imgTag = document.getElementById("imagePreview");
-                    imgTag.src = task.image.startsWith("/") ? task.image : `/media/${task.image}`;
+                    {% comment %} imgTag.src = task.image.startsWith("/") ? task.image : `/media/${task.image}`; {% endcomment %}
+                    imgTag.src = task.image || '';
                 } else {
                     alert("Failed to load task data.");
                 }
