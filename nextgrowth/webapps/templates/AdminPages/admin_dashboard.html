@@ -1,0 +1,104 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Admin Dashboard - Task Manager</title>
+    <link rel="stylesheet" href="{% static 'css/style.css' %}">
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 0;
+            padding: 0;
+        }
+        .header {
+            background-color: #007bff;
+            padding: 1rem;
+            color: white;
+            text-align: center;
+        }
+        .container {
+            display: flex;
+        }
+        .sidebar {
+            width: 220px;
+            background-color: #f2f2f2;
+            height: 100vh;
+            padding-top: 2rem;
+        }
+        .sidebar a {
+            display: block;
+            padding: 1rem;
+            text-decoration: none;
+            color: #333;
+        }
+        .sidebar a:hover {
+            background-color: #ddd;
+        }
+        .content {
+            padding: 2rem;
+            flex: 1;
+        }
+        #dashboard-wrapper {
+            display: none;
+        }
+    </style>
+</head>
+<body>
+    <div id="dashboard-wrapper">
+        <div class="header">
+            <h2 id="welcome-message">Welcome, Admin</h2>
+        </div>
+        <div class="container">
+            <div class="sidebar">
+                <a href="{% url 'Admin:admin-add-task' %}">➕ Create Task</a>
+                <a href="{% url 'Admin:admin-list' %}">📄 View All Tasks</a>
+                <a href="{% url 'Admin:admin-assign-task' %}">👥 Assign Task</a>
+                <a href="{% url 'Admin:admin-assign-list-task' %}">👥 Assign User-Task</a>
+                <a href="#" onclick="confirmLogout()">🚪 Logout</a>
+
+            </div>
+            <div class="content">
+                <h3>Select an action from the menu</h3>
+                <p>You can create new tasks, assign them to users, and review their submissions here.</p>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        async function confirmLogout() {
+            const shouldLogout = confirm("Are you sure you want to logout?");
+            if (!shouldLogout) return;
+    
+            const accessToken = localStorage.getItem("access_token");
+            if (!accessToken) {
+                window.location.href = "/webadmin/admin/login-page/";
+                return;
+            }
+    
+            try {
+                const response = await fetch("apis/admin/logout/", {
+                    method: "POST",
+                    headers: {
+                        "Authorization": `Bearer ${accessToken}`,
+                        "Content-Type": "application/json",
+                    }
+                });
+    
+                if (response.ok) {
+                    localStorage.removeItem("access_token");
+                    alert("Logout successful!");
+                    window.location.href = "/webadmin/admin/login-page/";
+                } else {
+                    const data = await response.json();
+                    alert(data.responseMessage || "Logout failed!");
+                }
+            } catch (err) {
+                console.error("Logout Error:", err);
+                alert("Something went wrong during logout.");
+            }
+        }
+    </script>
+    
+</body>
+</html>

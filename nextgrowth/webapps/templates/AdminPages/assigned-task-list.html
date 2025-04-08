@@ -1,0 +1,287 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>Admin Dashboard - Task Submissions</title>
+  <link rel="stylesheet" href="{% static 'css/style.css' %}">
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      margin: 0;
+      padding: 0;
+    }
+    .header {
+      background-color: #007bff;
+      padding: 1rem;
+      color: white;
+      text-align: center;
+    }
+    .container {
+      display: flex;
+    }
+    .sidebar {
+      width: 220px;
+      background-color: #f2f2f2;
+      height: 100vh;
+      padding-top: 2rem;
+    }
+    .sidebar a {
+      display: block;
+      padding: 1rem;
+      text-decoration: none;
+      color: #333;
+    }
+    .sidebar a:hover {
+      background-color: #ddd;
+    }
+    .content {
+      padding: 2rem;
+      flex: 1;
+    }
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      margin-top: 1rem;
+    }
+    th, td {
+      border: 1px solid #ddd;
+      padding: 0.75rem;
+      text-align: left;
+    }
+    th {
+      background-color: #f2f2f2;
+    }
+    button {
+      margin-right: 0.5rem;
+      padding: 0.4rem 0.8rem;
+      border: none;
+      border-radius: 5px;
+      cursor: pointer;
+    }
+    .approve-btn {
+      background-color: #28a745;
+      color: white;
+    }
+    .reject-btn {
+      background-color: #dc3545;
+      color: white;
+    }
+    .approve-btn[disabled],
+    .reject-btn[disabled] {
+      background-color: #a8d5b4;
+      cursor: not-allowed;
+    }
+    img {
+      max-width: 100px;
+      height: auto;
+    }
+    #dashboard-wrapper {
+      display: none;
+    }
+  </style>
+</head>
+<body>
+  <div id="dashboard-wrapper">
+    <div class="header">
+      <h2 id="welcome-message">Welcome, Admin</h2>
+    </div>
+    <div class="container">
+      <div class="sidebar">
+        <a href="{% url 'Admin:admin-add-task' %}">➕ Create Task</a>
+        <a href="{% url 'Admin:admin-list' %}">📄 View All Tasks</a>
+        <a href="{% url 'Admin:admin-assign-task' %}">👥 Assign Task</a>
+        <a href="{% url 'Admin:admin-assign-list-task' %}">👥 Assign User-Task</a>
+        <a href="#" onclick="logoutUser()">🚪 Logout</a>
+      </div>
+      <div class="content">
+        <h3>All Task Submissions</h3>
+        <table>
+          <thead>
+            <tr>
+              <th>#</th>
+              <th>User</th>
+              <th>Task Points</th>
+              <th>Task Title</th>
+              <th>Screenshot</th>
+              <th>Task assined Created at</th>
+              <th>Submitted At</th>
+              <th>Status</th>
+              <th>Action</th>
+            </tr>
+          </thead>
+          <tbody id="task-body">
+            <!-- Populated by JS -->
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    document.addEventListener("DOMContentLoaded", async function () {
+      const token = localStorage.getItem("access_token");
+      if (!token) {
+        window.location.href = "/webadmin/admin/login-page/";
+        return;
+      }
+
+      try {
+        const verifyResponse = await fetch("/apis/admin/verify/", {
+          method: "GET",
+          headers: { Authorization: `Bearer ${token}` },
+        });
+
+        if (verifyResponse.ok) {
+          const result = await verifyResponse.json();
+          document.getElementById("welcome-message").innerText =
+            `Welcome ${result.full_name || "Admin"}`;
+          document.getElementById("dashboard-wrapper").style.display = "block";
+          loadTaskSubmissions(token);
+        } else {
+          localStorage.removeItem("access_token");
+          window.location.href = "/webadmin/admin/login-page/";
+        }
+      } catch (err) {
+        console.error("Token verification error", err);
+        window.location.href = "/webadmin/admin/login-page/";
+      }
+    });
+
+    async function loadTaskSubmissions(token) {
+      try {
+        const response = await fetch("/apis/admin/assigned-task-list/", {
+          method: "GET",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${token}`,
+          },
+        });
+
+        const data = await response.json();
+        const tbody = document.getElementById("task-body");
+        tbody.innerHTML = "";
+
+        if (response.ok && data.responseCode === 200) {
+          data.responseData.forEach((submission, index) => {
+            const tr = document.createElement("tr");
+            tr.id = `submission-${submission.id}`;
+            let approveDisabled = "";
+            let rejectDisabled = "";
+
+            if (submission.status === "approved") {
+              approveDisabled = "disabled";
+            } else if (submission.status === "rejected") {
+              rejectDisabled = "disabled";
+            }
+
+            const hasScreenshot = !!submission.screenshot_url;
+
+            tr.innerHTML = `
+              <td>${index + 1}</td>
+              <td>${submission.user_name}</td>
+              <td>${submission.points}</td>
+              <td>${submission.task_title}</td>
+              <td>${
+                hasScreenshot
+                  ? `<img src="${submission.screenshot_url}" alt="Screenshot" />`
+                  : "N/A"
+              }</td>
+              <td>${submission.assigned_at || "No Date"}</td>
+              <td>${submission.user_submitted_at || "Not Submitted"}</td>
+              <td id="status-${submission.id}">${submission.status}</td>
+              <td>
+                <button class="approve-btn" onclick="updateStatus(${submission.id}, 'approved')" ${hasScreenshot ? approveDisabled : "disabled"}>✅ Approve</button>
+                <button class="reject-btn" onclick="updateStatus(${submission.id}, 'rejected')" ${rejectDisabled}>❌ Reject</button>
+              </td>
+            `;
+            tbody.appendChild(tr);
+          });
+        } else {
+          alert(data.responseMessage || "Error loading submissions");
+        }
+      } catch (error) {
+        alert("Error fetching task submissions");
+        console.error(error);
+      }
+    }
+
+    async function updateStatus(submissionId, newStatus) {
+      const token = localStorage.getItem("access_token");
+      try {
+        const response = await fetch("/apis/admin/review-submission/", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${token}`,
+          },
+          body: JSON.stringify({
+            submission_id: submissionId,
+            status: newStatus,
+          }),
+        });
+
+        const data = await response.json();
+
+        if (response.ok && data.responseCode === 200) {
+          document.getElementById(`status-${submissionId}`).innerText = newStatus;
+
+          const row = document.getElementById(`submission-${submissionId}`);
+          const approveBtn = row.querySelector(".approve-btn");
+          const rejectBtn = row.querySelector(".reject-btn");
+
+          if (newStatus === "approved") {
+            approveBtn.disabled = true;
+            rejectBtn.disabled = false;
+          } else if (newStatus === "rejected") {
+            approveBtn.disabled = false;
+            rejectBtn.disabled = true;
+          }
+        } else {
+          alert(data.responseMessage || "Failed to update status");
+        }
+      } catch (error) {
+        alert("Error updating submission status");
+        console.error(error);
+      }
+    }
+  </script>
+
+
+  <script>
+    async function logoutUser() {
+        const confirmLogout = confirm("Are you sure you want to logout?");
+        if (!confirmLogout) return;
+
+        const accessToken = localStorage.getItem("access_token");
+        if (!accessToken) {
+            window.location.href = "/webadmin/admin/login-page/";
+            return;
+        }
+
+        try {
+
+            const response = await fetch("/apis/admin/logout/", {
+                method: "POST",
+                headers: {
+                    "Authorization": `Bearer ${accessToken}`,
+                    "Content-Type": "application/json",
+                }
+            });
+
+            if (response.ok) {
+                localStorage.removeItem("access_token");
+                alert("Logout successful!");
+                window.location.href = "/webadmin/admin/login-page/";
+            } else {
+                const data = await response.json();
+                alert(data.responseMessage || "Logout failed!");
+            }
+        } catch (err) {
+            console.error("Logout Error:", err);
+            alert("Something went wrong during logout.");
+        }
+    }
+</script>
+</body>
+</html>

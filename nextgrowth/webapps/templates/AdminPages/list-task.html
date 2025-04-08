@@ -1,0 +1,281 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>All Tasks - Admin Panel</title>
+    <link rel="stylesheet" href="{% static 'css/style.css' %}">
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 0;
+        }
+
+        .header {
+            background-color: #007bff;
+            color: white;
+            padding: 1rem;
+            text-align: center;
+        }
+
+        .container {
+            display: flex;
+        }
+
+        .sidebar {
+            width: 220px;
+            background-color: #f2f2f2;
+            height: 100vh;
+            padding-top: 2rem;
+        }
+
+        .sidebar a {
+            display: block;
+            padding: 1rem;
+            text-decoration: none;
+            color: #333;
+        }
+
+        .sidebar a:hover {
+            background-color: #ddd;
+        }
+
+        .content {
+            padding: 2rem;
+            flex: 1;
+        }
+
+        #dashboard-wrapper {
+            display: none;
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 1rem;
+        }
+
+        table, th, td {
+            border: 1px solid #ccc;
+        }
+
+        th, td {
+            padding: 10px;
+            text-align: left;
+        }
+
+        th {
+            background-color: #eee;
+        }
+
+        .btn {
+            padding: 5px 10px;
+            margin-right: 5px;
+            border: none;
+            cursor: pointer;
+            color: white;
+        }
+
+        .btn-edit {
+            background-color: #28a745;
+        }
+
+        .btn-delete {
+            background-color: #dc3545;
+        }
+
+        .task-image {
+            max-width: 100px;
+            max-height: 60px;
+            object-fit: cover;
+        }
+    </style>
+</head>
+<body>
+    <div id="dashboard-wrapper">
+        <div class="header">
+            <h2 id="welcome-message">Welcome, Admin</h2>
+        </div>
+
+        <div class="container">
+            <!-- Sidebar -->
+            <div class="sidebar">
+                <a href="{% url 'Admin:admin-add-task' %}">➕ Create Task</a>
+                <a href="{% url 'Admin:admin-list' %}">📄 View All Tasks</a>
+                <a href="{% url 'Admin:admin-assign-task' %}">👥 Assign Task</a>
+                <a href="{% url 'Admin:admin-assign-list-task' %}">👥 Assign User-Task</a>
+                <a href="#" onclick="logoutUser()">🚪 Logout</a>
+            </div>
+            
+
+            <!-- Page Content -->
+            <div class="content">
+                <h3>All Tasks</h3>
+                <table id="taskTable">
+                    <thead>
+                        <tr>
+                            <th>Title</th>
+                            <th>Description</th>
+                            <th>Points</th>
+                            <th>Download Link</th>
+                            <th>Image</th>
+                            <th>Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody id="taskList">
+                        <!-- Dynamic rows here -->
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        document.addEventListener("DOMContentLoaded", async function () {
+            const accessToken = localStorage.getItem('access_token');
+
+            if (!accessToken) {
+                window.location.href = "/webadmin/admin/login-page/";
+                return;
+            }
+
+            try {
+                const verifyRes = await fetch("/apis/admin/verify/", {
+                    method: 'GET',
+                    headers: {
+                        'Authorization': `Bearer ${accessToken}`
+                    }
+                });
+
+                if (verifyRes.ok) {
+                    const user = await verifyRes.json();
+                    document.getElementById("welcome-message").innerText = 
+                        `Welcome ${user.full_name || "Admin"}`;
+                    document.getElementById("dashboard-wrapper").style.display = "block";
+
+                    // Load tasks
+                    loadTasks(accessToken);
+                } else {
+                    localStorage.removeItem('access_token');
+                    window.location.href = "/webadmin/admin/login-page/";
+                }
+            } catch (err) {
+                console.error("Error verifying token", err);
+                window.location.href = "/webadmin/admin/login-page/";
+            }
+        });
+
+        async function loadTasks(token) {
+            try {
+                const res = await fetch("/apis/admin/task/list/", {
+                    method: 'GET',
+                    headers: {
+                        'Authorization': `Bearer ${token}`
+                    }
+                });
+
+                const data = await res.json();
+
+                const taskList = document.getElementById("taskList");
+                taskList.innerHTML = "";
+
+                const tasks = data.responseData;
+
+                if (Array.isArray(tasks)) {
+                    tasks.forEach(task => {
+                        const row = document.createElement("tr");
+
+                        row.innerHTML = `
+                            <td>${task.title}</td>
+                            <td>${task.description}</td>
+                            <td>${task.points}</td>
+                            <td><a href="${task.download_link}" target="_blank">Download</a></td>
+                            <td>
+                                <img src="${task.image}" alt="Task Image" class="task-image"/>
+                            </td>
+                            <td>
+                                <button class="btn btn-edit" onclick="editTask('${task.id}')">Edit</button>
+                                <button class="btn btn-delete" onclick="deleteTask('${task.id}')">Delete</button>
+                            </td>
+                        `;
+
+                        taskList.appendChild(row);
+                    });
+                } else {
+                    console.warn("responseData is not an array:", tasks);
+                }
+
+            } catch (err) {
+                console.error("Error loading tasks:", err);
+            }
+        }
+
+        function editTask(taskId) {
+            window.location.href = `/webadmin/admin/edit-task/${taskId}/`;
+        }
+
+        async function deleteTask(taskId) {
+            const confirmDelete = confirm("Are you sure you want to delete this task?");
+            if (!confirmDelete) return;
+
+            const token = localStorage.getItem('access_token');
+
+            try {
+                const res = await fetch(`/apis/admin/task/delete/${taskId}/`, {
+                    method: 'DELETE',
+                    headers: {
+                        'Authorization': `Bearer ${token}`
+                    }
+                });
+
+                if (res.ok) {
+                    alert("Task deleted successfully");
+                    loadTasks(token);  
+                } else {
+                    alert("Failed to delete task");
+                }
+            } catch (err) {
+                console.error("Error deleting task:", err);
+            }
+        }
+    </script>
+
+    <script>
+        async function logoutUser() {
+            const confirmLogout = confirm("Are you sure you want to logout?");
+            if (!confirmLogout) return;
+    
+            const accessToken = localStorage.getItem("access_token");
+            if (!accessToken) {
+                window.location.href = "/webadmin/admin/login-page/";
+                return;
+            }
+    
+            try {
+
+                const response = await fetch("/apis/admin/logout/", {
+                    method: "POST",
+                    headers: {
+                        "Authorization": `Bearer ${accessToken}`,
+                        "Content-Type": "application/json",
+                    }
+                });
+    
+                if (response.ok) {
+                    localStorage.removeItem("access_token");
+                    alert("Logout successful!");
+                    window.location.href = "/webadmin/admin/login-page/";
+                } else {
+                    const data = await response.json();
+                    alert(data.responseMessage || "Logout failed!");
+                }
+            } catch (err) {
+                console.error("Logout Error:", err);
+                alert("Something went wrong during logout.");
+            }
+        }
+    </script>
+    
+    
+</body>
+</html>

@@ -1,0 +1,263 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Create Task - Admin Panel</title>
+    <link rel="stylesheet" href="{% static 'css/style.css' %}">
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 0;
+            padding: 0;
+        }
+
+        .header {
+            background-color: #007bff;
+            padding: 1rem;
+            color: white;
+            text-align: center;
+        }
+
+        .container {
+            display: flex;
+        }
+
+        .sidebar {
+            width: 220px;
+            background-color: #f2f2f2;
+            height: 100vh;
+            padding-top: 2rem;
+        }
+
+        .sidebar a {
+            display: block;
+            padding: 1rem;
+            text-decoration: none;
+            color: #333;
+        }
+
+        .sidebar a:hover {
+            background-color: #ddd;
+        }
+
+        .content {
+            padding: 2rem;
+            flex: 1;
+        }
+
+        #dashboard-wrapper {
+            display: none;
+        }
+        .form-container {
+            max-width: 600px;
+            background: #ffffff;
+            padding: 25px;
+            border-radius: 10px;
+            box-shadow: 0 0 10px rgba(0,0,0,0.1);
+        }
+
+        .form-group {
+            margin-bottom: 20px;
+        }
+
+        label {
+            font-weight: 600;
+            display: block;
+            margin-bottom: 6px;
+        }
+
+        input, textarea {
+            width: 100%;
+            padding: 10px;
+            border-radius: 6px;
+            border: 1px solid #ccc;
+            background: #f9f9f9;
+        }
+
+        button {
+            padding: 12px;
+            background-color: #007bff;
+            color: white;
+            border: none;
+            border-radius: 6px;
+            width: 100%;
+            font-weight: 600;
+            cursor: pointer;
+        }
+
+        button:hover {
+            background-color: #0056b3;
+        }
+
+        #message {
+            margin-top: 15px;
+        }
+
+        .success {
+            color: green;
+        }
+
+        .error {
+            color: red;
+        }
+    </style>
+</head>
+<body>
+    <div id="dashboard-wrapper">
+        <div class="header">
+            <h2 id="welcome-message">Welcome, Admin</h2>
+        </div>
+
+        <div class="container">
+            <!-- Sidebar -->
+            <div class="sidebar">
+                <a href="{% url 'Admin:admin-add-task' %}">➕ Create Task</a>
+                <a href="{% url 'Admin:admin-list' %}">📄 View All Tasks</a>
+                <a href="{% url 'Admin:admin-assign-task' %}">👥 Assign Task</a>
+                <a href="{% url 'Admin:admin-assign-list-task' %}">👥 Assign User-Task</a>
+                <a href="#" onclick="logoutUser()">🚪 Logout</a>
+            </div>
+
+            <!-- Page Content -->
+            <div class="content">
+                <h3>Create a New Task</h3>
+
+                <div class="form-container">
+                    <form id="addTaskForm" enctype="multipart/form-data">
+                        <div class="form-group">
+                            <label for="title">Task Title</label>
+                            <input type="text" name="title" id="title" required />
+                        </div>
+
+                        <div class="form-group">
+                            <label for="description">Description</label>
+                            <textarea name="description" id="description" required></textarea>
+                        </div>
+
+                        <div class="form-group">
+                            <label for="download_link">Download Link</label>
+                            <input type="text" name="download_link" id="download_link" required />
+                        </div>
+
+                        <div class="form-group">
+                            <label for="points">Points</label>
+                            <input type="number" name="points" id="points" required />
+                        </div>
+
+                        <div class="form-group">
+                            <label for="image">Task Image</label>
+                            <input type="file" name="image" id="image" accept="image/*" required />
+                        </div>
+
+                        <button type="submit">Create Task</button>
+                    </form>
+
+                    <div id="message"></div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        document.addEventListener("DOMContentLoaded", async function () {
+            const accessToken = localStorage.getItem('access_token');
+
+            if (!accessToken) {
+                window.location.href = "/webadmin/admin/login-page/";
+                return;
+            }
+
+            try {
+                const response = await fetch("/apis/admin/verify/", {
+                    method: 'GET',
+                    headers: {
+                        'Authorization': `Bearer ${accessToken}`
+                    }
+                });
+
+                if (response.ok) {
+                    const result = await response.json();
+                    document.getElementById("welcome-message").innerText =
+                        `Welcome ${result.full_name || "Admin"}`;
+                    document.getElementById("dashboard-wrapper").style.display = "block";
+                } else {
+                    localStorage.removeItem('access_token');
+                    window.location.href = "/webadmin/admin/login-page/";
+                }
+            } catch (err) {
+                console.error("Error verifying token", err);
+                window.location.href = "/webadmin/admin/login-page/";
+            }
+        });
+
+        // Handle form submit
+        document.getElementById('addTaskForm').addEventListener('submit', async function (e) {
+            e.preventDefault();
+
+            const formData = new FormData(this);
+            const accessToken = localStorage.getItem('access_token');
+            const apiUrl = `${window.location.origin}/apis/admin/task/create/`;
+            const messageDiv = document.getElementById('message');
+
+            try {
+                const response = await fetch(apiUrl, {
+                    method: 'POST',
+                    headers: {
+                        'Authorization': `Bearer ${accessToken}`,
+                    },
+                    body: formData
+                });
+
+                const result = await response.json();
+
+                if (response.status === 201) {
+                    messageDiv.innerHTML = `<p class="success">${result.responseMessage}</p>`;
+                    this.reset();
+                } else {
+                    messageDiv.innerHTML = `<p class="error">${result.responseMessage}</p>`;
+                }
+            } catch (err) {
+                console.error("Create Task Error:", err);
+                messageDiv.innerHTML = `<p class="error">Something went wrong. Try again!</p>`;
+            }
+        });
+    </script>
+
+    <script>
+        async function logoutUser() {
+            const confirmLogout = confirm("Are you sure you want to logout?");
+            if (!confirmLogout) return;
+    
+            const accessToken = localStorage.getItem("access_token");
+            if (!accessToken) {
+                window.location.href = "/webadmin/admin/login-page/";
+                return;
+            }
+    
+            try {
+
+                const response = await fetch("/apis/admin/logout/", {
+                    method: "POST",
+                    headers: {
+                        "Authorization": `Bearer ${accessToken}`,
+                        "Content-Type": "application/json",
+                    }
+                });
+    
+                if (response.ok) {
+                    localStorage.removeItem("access_token");
+                    alert("Logout successful!");
+                    window.location.href = "/webadmin/admin/login-page/";
+                } else {
+                    const data = await response.json();
+                    alert(data.responseMessage || "Logout failed!");
+                }
+            } catch (err) {
+                console.error("Logout Error:", err);
+                alert("Something went wrong during logout.");
+            }
+        }
+    </script>
+</body>
+</html>
